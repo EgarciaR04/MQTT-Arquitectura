@@ -54,8 +54,8 @@ async def _handle_telemetry(device_id_str: str, payload_raw: bytes) -> None:
         await db.commit()
         await db.refresh(record)
 
-        await manager.send_to_user(
-            device.owner_id,
+        await manager.send_to_device(
+            device.device_id,
             {
                 "type": "telemetry",
                 "device_id": device.device_id,
@@ -76,8 +76,8 @@ async def _handle_status(device_id_str: str, payload_raw: bytes) -> None:
         device = result.scalar_one_or_none()
         if device is None:
             return
-        await manager.send_to_user(
-            device.owner_id,
+        await manager.send_to_device(
+            device.device_id,
             {"type": "status", "device_id": device.device_id, "status": status_value},
         )
 

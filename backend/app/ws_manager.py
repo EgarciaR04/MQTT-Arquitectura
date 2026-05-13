@@ -1,4 +1,4 @@
-"""Gestor de conexiones WebSocket."""
+"""Gestor de conexiones WebSocket por dispositivo."""
 import asyncio
 import logging
 from collections import defaultdict
@@ -9,32 +9,40 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
+    """
+    Cada conexión WS se asocia a un device_id específico.
+    Solo recibe los eventos de ese dispositivo.
+    """
+
     def __init__(self) -> None:
-        self._connections: dict[int, list[WebSocket]] = defaultdict(list)
+        self._by_device: dict[str, list[WebSocket]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
-    async def connect(self, user_id: int, ws: WebSocket) -> None:
+    async def connect(self, device_id: str, ws: WebSocket) -> None:
         await ws.accept()
         async with self._lock:
-            self._connections[user_id].append(ws)
-        logger.info("WS conectado: user_id=%s", user_id)
+            self._by_device[device_id].append(ws)
+        logger.info("WS conectado: device_id=%s (total=%d)",
+                    device_id, len(self._by_device[device_id]))
 
-    async def disconnect(self, user_id: int, ws: WebSocket) -> None:
+    async def disconnect(self, device_id: str, ws: WebSocket) -> None:
         async with self._lock:
-            if ws in self._connections.get(user_id, []):
-                self._connections[user_id].remove(ws)
-                if not self._connections[user_id]:
-                    del self._connections[user_id]
-        logger.info("WS desconectado: user_id=%s", user_id)
+            conns = self._by_device.get(device_id, [])
+            if ws in conns:
+                conns.remove(ws)
+                if not conns:
+                    del self._by_device[device_id]
+        logger.info("WS desconectado: device_id=%s", device_id)
 
-    async def send_to_user(self, user_id: int, message: dict) -> None:
-        conns = list(self._connections.get(user_id, []))
+    async def send_to_device(self, device_id: str, message: dict) -> None:
+        """Envía un mensaje a TODAS las conexiones suscritas a ese dispositivo."""
+        conns = list(self._by_device.get(device_id, []))
         for ws in conns:
             try:
                 await ws.send_json(message)
             except Exception as e:
-                logger.warning("Error enviando WS a user=%s: %s", user_id, e)
-                await self.disconnect(user_id, ws)
+                logger.warning("Error enviando WS de %s: %s", device_id, e)
+                await self.disconnect(device_id, ws)
 
 
 manager = ConnectionManager()

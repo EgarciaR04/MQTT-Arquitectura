@@ -1,12 +1,11 @@
 """
-Simulador de ESP32.
+Simulador de ESP32 — versión event-driven.
 
-Hace exactamente lo que hará el ESP32 real:
-- Publica telemetría cada 5 segundos en devices/{DEVICE_ID}/telemetry
-- Publica "online" en devices/{DEVICE_ID}/status al conectar
-- Configura Last Will Testament para que el broker publique "offline"
-  automáticamente si la conexión se cae
-- Se suscribe a devices/{DEVICE_ID}/commands y muestra lo que recibe
+Publica telemetría SOLO cuando hay cambio significativo:
+- Cambio discreto (LED, setpoint) -> publica inmediatamente.
+- Cambio analógico (temperatura/humedad/presión) -> publica si supera umbral.
+- En estado estable, el simulador queda silencioso. El estado "online" del
+  Last Will Testament sigue indicando que está vivo.
 """
 import asyncio
 import json
@@ -16,14 +15,20 @@ from datetime import datetime, timezone
 
 import aiomqtt
 
-# === Configuración ===
-MQTT_HOST = "localhost"
+# === Configuración de conexión ===
+MQTT_HOST = "198.199.86.232"   # IP del droplet
 MQTT_PORT = 1883
 DEVICE_ID = "device001"
 MQTT_USER = DEVICE_ID
 MQTT_PASS = "device001pass"
-PUBLISH_INTERVAL = 5
 
+# === Comportamiento ===
+SENSOR_READ_INTERVAL = 2.0     # cada cuánto leer sensores internamente
+THRESHOLD_TEMP = 0.5           # °C
+THRESHOLD_HUMIDITY = 2.0       # %
+THRESHOLD_PRESSURE = 1.0       # hPa
+
+# Tópicos
 TELEMETRY_TOPIC = f"devices/{DEVICE_ID}/telemetry"
 STATUS_TOPIC = f"devices/{DEVICE_ID}/status"
 COMMANDS_TOPIC = f"devices/{DEVICE_ID}/commands"
@@ -34,47 +39,123 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mock_esp32")
 
-# Estado simulado del dispositivo (se modifica vía comandos)
+# Estado de control (modificable por comandos)
 state = {
     "led": False,
     "setpoint": 22.0,
 }
 
+# Estado físico simulado (lo que "leen" los sensores)
+sensors = {
+    "temperatura": 22.0,
+    "humedad": 55.0,
+    "presion": 1015.0,
+}
 
-def generate_telemetry() -> dict:
-    """Genera una lectura simulada con valores realistas."""
-    base_temp = state["setpoint"]
+# Última lectura publicada (para comparar)
+last_published: dict | None = None
+
+# Evento que dispara publicación inmediata desde apply_command()
+state_changed_event = asyncio.Event()
+
+
+def read_sensors() -> dict:
+    """
+    Simula la lectura del hardware:
+    - Temperatura deriva hacia el setpoint (10% por tick) + ruido bajo el umbral.
+    - Humedad y presión hacen pequeño random walk acotado.
+    """
+    # Termostato: la temperatura se acerca al setpoint
+    sensors["temperatura"] += (state["setpoint"] - sensors["temperatura"]) * 0.1
+    sensors["temperatura"] += random.uniform(-0.05, 0.05)
+
+    sensors["humedad"] += random.uniform(-0.3, 0.3)
+    sensors["humedad"] = max(40.0, min(70.0, sensors["humedad"]))
+
+    sensors["presion"] += random.uniform(-0.1, 0.1)
+    sensors["presion"] = max(1005.0, min(1025.0, sensors["presion"]))
+
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "temperatura": round(base_temp + random.uniform(-1.5, 1.5), 2),
-        "humedad": round(random.uniform(45, 65), 1),
-        "presion": round(random.uniform(1010, 1020), 1),
+        "temperatura": round(sensors["temperatura"], 2),
+        "humedad": round(sensors["humedad"], 1),
+        "presion": round(sensors["presion"], 1),
         "led": state["led"],
         "setpoint": state["setpoint"],
     }
 
 
+def has_significant_change(new: dict, last: dict | None) -> bool:
+    """Decide si una lectura nueva amerita publicación."""
+    if last is None:
+        return True
+
+    # Cambios discretos: siempre publicar
+    if new["led"] != last["led"]:
+        return True
+    if new["setpoint"] != last["setpoint"]:
+        return True
+
+    # Cambios analógicos: solo si superan el umbral
+    if abs(new["temperatura"] - last["temperatura"]) > THRESHOLD_TEMP:
+        return True
+    if abs(new["humedad"] - last["humedad"]) > THRESHOLD_HUMIDITY:
+        return True
+    if abs(new["presion"] - last["presion"]) > THRESHOLD_PRESSURE:
+        return True
+
+    return False
+
+
 def apply_command(payload: dict) -> None:
-    """Aplica un comando recibido al estado del dispositivo."""
+    """Aplica un comando recibido. Si cambia el estado, dispara publicación."""
+    changed = False
     if "led" in payload:
-        state["led"] = bool(payload["led"])
-        logger.info("LED -> %s", state["led"])
+        new_val = bool(payload["led"])
+        if new_val != state["led"]:
+            state["led"] = new_val
+            logger.info("LED -> %s", state["led"])
+            changed = True
     if "setpoint" in payload:
-        state["setpoint"] = float(payload["setpoint"])
-        logger.info("Setpoint -> %s", state["setpoint"])
+        new_val = float(payload["setpoint"])
+        if new_val != state["setpoint"]:
+            state["setpoint"] = new_val
+            logger.info("Setpoint -> %s", state["setpoint"])
+            changed = True
+    if changed:
+        state_changed_event.set()
 
 
 async def publisher_loop(client: aiomqtt.Client) -> None:
-    """Publica telemetría periódicamente."""
+    """
+    Bucle event-driven:
+    - Despierta cada SENSOR_READ_INTERVAL para leer sensores.
+    - O despierta antes si un comando dispara state_changed_event.
+    - Solo publica si has_significant_change() retorna True.
+    """
+    global last_published
+
     while True:
-        telemetry = generate_telemetry()
-        await client.publish(TELEMETRY_TOPIC, json.dumps(telemetry), qos=1)
-        logger.info("→ %s: %s", TELEMETRY_TOPIC, telemetry)
-        await asyncio.sleep(PUBLISH_INTERVAL)
+        # Esperar el siguiente tick o un cambio de estado
+        try:
+            await asyncio.wait_for(
+                state_changed_event.wait(), timeout=SENSOR_READ_INTERVAL
+            )
+            state_changed_event.clear()
+        except asyncio.TimeoutError:
+            pass
+
+        new_reading = read_sensors()
+        if has_significant_change(new_reading, last_published):
+            await client.publish(
+                TELEMETRY_TOPIC, json.dumps(new_reading), qos=1
+            )
+            logger.info("→ Publicado: %s", new_reading)
+            last_published = new_reading
+        # else: silencio
 
 
 async def command_listener(client: aiomqtt.Client) -> None:
-    """Escucha y procesa comandos."""
     async for message in client.messages:
         if str(message.topic) != COMMANDS_TOPIC:
             continue
@@ -103,15 +184,12 @@ async def main() -> None:
                 password=MQTT_PASS,
                 will=will,
                 identifier=f"mock-{DEVICE_ID}",
-                keepalive=10
+                keepalive=15,
             ) as client:
                 logger.info("Conectado al broker como %s", MQTT_USER)
-
-                # Anunciar online (retenido para que nuevos suscriptores lo vean)
                 await client.publish(STATUS_TOPIC, b"online", qos=1, retain=True)
-
                 await client.subscribe(COMMANDS_TOPIC, qos=1)
-                logger.info("Suscrito a %s", COMMANDS_TOPIC)
+                logger.info("Modo event-driven activo. Publicando solo en cambios.")
 
                 async with asyncio.TaskGroup() as tg:
                     tg.create_task(publisher_loop(client))
