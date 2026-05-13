@@ -32,9 +32,9 @@ import aiomqtt
 # === Conexión ===
 MQTT_HOST = "198.199.86.232"
 MQTT_PORT = 1883
-DEVICE_ID = "device001"
+DEVICE_ID = "device002"
 MQTT_USER = DEVICE_ID
-MQTT_PASS = "device001pass"
+MQTT_PASS = "device002pass"
 
 # === Comportamiento ===
 SENSOR_READ_INTERVAL = 2.0
