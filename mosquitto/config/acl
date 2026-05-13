@@ -1,0 +1,15 @@
+# El backend tiene acceso total - lee y escribe en cualquier tópico
+user backend
+topic readwrite #
+
+# Dispositivo device001: solo puede tocar SUS tópicos
+user device001
+topic write devices/device001/telemetry
+topic write devices/device001/status
+topic read devices/device001/commands
+
+# Plantilla para nuevos dispositivos (descomenta y duplica)
+# user deviceXXX
+# topic write devices/deviceXXX/telemetry
+# topic write devices/deviceXXX/status
+# topic read devices/deviceXXX/commands

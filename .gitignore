@@ -1,0 +1,4 @@
+passwd
+mosquitto/data/
+.venv/
+__pycache__/
