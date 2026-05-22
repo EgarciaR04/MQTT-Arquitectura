@@ -1,0 +1,43 @@
+<header class="top-bar">
+  <div class="top-bar-inner">
+    <h1 class="title">Mis dispositivos</h1>
+    <button class="logout-btn" (click)="logout()">Salir</button>
+  </div>
+</header>
+
+<main class="content">
+
+  @if (loading()) {
+    <div class="state-message">
+      <div class="spinner"></div>
+      <p>Cargando dispositivos...</p>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="state-message error">
+      <p>{{ errorMessage() }}</p>
+      <button class="retry-btn" (click)="loadDevices()">Reintentar</button>
+    </div>
+  } @else if (devices().length === 0) {
+    <div class="state-message">
+      <p>No tienes dispositivos registrados.</p>
+      <p class="hint">Regístralos desde Swagger UI: <br>
+        <a href="http://198.199.86.232:8000/docs" target="_blank">
+          http://198.199.86.232:8000/docs
+        </a>
+      </p>
+    </div>
+  } @else {
+    <div class="devices-grid">
+      @for (device of devices(); track device.id) {
+        <article class="device-card" (click)="openDevice(device)">
+          <div class="device-name">{{ device.name }}</div>
+          <div class="device-id">{{ device.device_id }}</div>
+          <div class="device-meta">
+            Creado: {{ device.created_at | slice:0:10 }}
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+</main>

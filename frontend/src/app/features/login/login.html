@@ -1,0 +1,46 @@
+<div class="login-container">
+  <div class="login-card">
+
+    <h1 class="title">IoT Monitor</h1>
+    <p class="subtitle">Inicia sesión para continuar</p>
+
+    <form (submit)="submit(); $event.preventDefault()">
+
+      <label class="field-label" for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        autocomplete="email"
+        [ngModel]="email()"
+        (ngModelChange)="email.set($event)"
+        name="email"
+        [disabled]="loading()" />
+
+      <label class="field-label" for="password">Contraseña</label>
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        [ngModel]="password()"
+        (ngModelChange)="password.set($event)"
+        name="password"
+        [disabled]="loading()" />
+
+      <button type="submit" class="login-btn" [disabled]="loading()">
+        @if (loading()) {
+          <span>Iniciando sesión...</span>
+        } @else {
+          <span>Iniciar sesión</span>
+        }
+      </button>
+
+      @if (errorMessage()) {
+        <div class="error-box">
+          {{ errorMessage() }}
+        </div>
+      }
+
+    </form>
+
+  </div>
+</div>

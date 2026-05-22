@@ -1,0 +1,45 @@
+networks:
+  proxy_network:
+    external: true
+    name: proxy_network
+  db_network:
+    external: true
+    name: db_network
+  mqtt_internal:
+    name: mqtt_internal
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: iot-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - mqtt_internal
+
+  backend:
+    image: backendmqtt:latest
+    container_name: iot-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend.env
+    networks:
+      - proxy_network
+      - db_network
+      - mqtt_internal
+    depends_on:
+      - mosquitto
+
+  frontend:
+    image: frontendmqtt:latest
+    container_name: iot-frontend
+    restart: unless-stopped
+    networks:
+      - proxy_network
+    depends_on:
+      - backend

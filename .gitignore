@@ -2,3 +2,6 @@ passwd
 mosquitto/data/
 .venv/
 __pycache__/
+node_modules/
+*.sh
+*.tar.gz

@@ -1,0 +1,138 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f5f5f7;
+}
+
+/* === Barra superior === */
+.top-bar {
+  background: #667eea;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.top-bar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* === Contenido === */
+.content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* === Estados (cargando/vacío/error) === */
+.state-message {
+  text-align: center;
+  padding: 64px 24px;
+  color: #666;
+}
+
+.state-message .hint {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #999;
+}
+
+.state-message a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.state-message.error {
+  color: #c33;
+}
+
+.retry-btn {
+  margin-top: 16px;
+  padding: 10px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 16px;
+  border: 3px solid #ddd;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === Grid de tarjetas === */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.device-card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 1px solid transparent;
+}
+
+.device-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
+}
+
+.device-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.device-id {
+  font-size: 13px;
+  color: #888;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 12px;
+}
+
+.device-meta {
+  font-size: 12px;
+  color: #aaa;
+}

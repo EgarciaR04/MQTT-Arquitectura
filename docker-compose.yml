@@ -1,10 +1,26 @@
 services:
+  # =====================================================================
+  # Nginx centralizado: unico contenedor que publica el puerto 80 al host.
+  # Enruta por path hacia frontend y backend. Ver nginx/nginx.conf.
+  # =====================================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: iot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: iot-mosquitto
     restart: unless-stopped
     ports:
-      - "1883:1883"     # MQTT
+      - "1883:1883"     # MQTT directo para dispositivos IoT reales
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
@@ -12,10 +28,9 @@ services:
 
   backend:
     build: ./backend
+    image: backendmqtt:latest
     container_name: iot-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     env_file:
       - ./backend/.env
     depends_on:
@@ -23,6 +38,14 @@ services:
         condition: service_healthy
       mosquitto:
         condition: service_started
+
+  frontend:
+    build: ./frontend
+    image: frontendmqtt:latest
+    container_name: iot-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
 
   postgres:
     image: postgres:16-alpine
@@ -34,6 +57,8 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5432:5432"     # Expuesto para clientes externos (DBeaver, etc.)
     volumes:
       - io_data:/var/lib/postgresql/data
     healthcheck:

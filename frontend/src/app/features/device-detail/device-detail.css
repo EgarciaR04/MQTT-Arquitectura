@@ -1,0 +1,331 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f5f5f7;
+}
+
+/* === Barra superior === */
+.top-bar {
+  background: #667eea;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.header-info {
+  flex: 1;
+}
+
+.device-id {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-ok { background: #4caf50; color: white; }
+.badge-warn { background: #ff9800; color: white; }
+.badge-bad { background: #f44336; color: white; }
+
+/* === Contenido === */
+.content {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sensor-card,
+.control-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.sensor-label {
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #999;
+}
+
+.sensor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.humidity-value {
+  font-size: 56px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1;
+}
+
+.unit {
+  font-size: 28px;
+  color: #888;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+.placeholder {
+  color: #ddd;
+}
+
+/* === LEDs === */
+.leds {
+  display: flex;
+  gap: 12px;
+}
+
+.led {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #444;
+  border: 2px solid #222;
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s;
+}
+
+.led.red.on {
+  background: #f44336;
+  border-color: #b71c1c;
+  box-shadow: 0 0 16px rgba(244, 67, 54, 0.7),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.led.green.on {
+  background: #4caf50;
+  border-color: #1b5e20;
+  box-shadow: 0 0 16px rgba(76, 175, 80, 0.7),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* === Control de minHumedad === */
+.current-value {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #555;
+}
+
+.current-value strong {
+  font-size: 18px;
+  color: #333;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-row input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.form-row input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-row input:disabled {
+  background: #f5f5f5;
+}
+
+.send-btn {
+  padding: 10px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.send-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.feedback {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.feedback-ok {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.feedback-err {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+/* === Tarjeta de estado de la bomba === */
+.pump-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.pump-card.pump-on {
+  border-color: #4caf50;
+  background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%);
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.2);
+}
+
+.pump-status-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #999;
+  margin-bottom: 12px;
+}
+
+.pump-status-value {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #999;
+  transition: color 0.3s ease;
+}
+
+.pump-card.pump-on .pump-status-value {
+  color: #2e7d32;
+}
+
+/* === Switches de control manual === */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.switch-row:last-child {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.switch-info {
+  flex: 1;
+  padding-right: 16px;
+}
+
+.switch-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.switch-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+}
+
+.switch-note {
+  display: block;
+  color: #c62828;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.switch {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  background: #ccc;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+  padding: 0;
+  outline: none;
+}
+
+.switch:focus-visible {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35);
+}
+
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s ease;
+}
+
+.switch.switch-on {
+  background: #667eea;
+}
+
+.switch.switch-on .switch-knob {
+  transform: translateX(24px);
+}
+
+.switch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

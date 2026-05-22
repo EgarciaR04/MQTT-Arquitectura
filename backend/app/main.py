@@ -34,6 +34,7 @@ app = FastAPI(
     title="IoT Backend",
     version="0.2.0",
     lifespan=lifespan,
+    root_path="/api",
 )
 
 origins = [o.strip() for o in settings.cors_origins.split(",")] if settings.cors_origins else ["*"]

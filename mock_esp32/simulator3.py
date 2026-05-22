@@ -32,13 +32,13 @@ import aiomqtt
 # === Conexión ===
 MQTT_HOST = "198.199.86.232"
 MQTT_PORT = 1883
-DEVICE_ID = "sriego001"
+DEVICE_ID = "device003"
 MQTT_USER = DEVICE_ID
-MQTT_PASS = "sriego001pass"
+MQTT_PASS = "device003pass"
 
 # === Comportamiento ===
 SENSOR_READ_INTERVAL = 2.0
-THRESHOLD_HUMIDITY = 1.0       # %  — variación mínima de humedad para publicar
+THRESHOLD_HUMIDITY = 0.3       # %  — variación mínima de humedad para publicar
 
 # === Tópicos ===
 TELEMETRY_TOPIC = f"devices/{DEVICE_ID}/telemetry"
