@@ -1,14 +1,23 @@
 networks:
   proxy_network:
-    external: true
-    name: proxy_network
+    external: true          # Creada por docker-compose.nginx.yml (nginx-general)
   db_network:
-    external: true
-    name: db_network
   mqtt_internal:
-    name: mqtt_internal
 
 services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: iot-nginx
+    restart: unless-stopped
+    # Sin puerto expuesto al host: el trafico llega desde nginx-general
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy_network
+    depends_on:
+      - frontend
+      - backend
+
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: iot-mosquitto
@@ -23,7 +32,7 @@ services:
       - mqtt_internal
 
   backend:
-    image: backendmqtt:latest
+    image: erivas04/backendmqtt:latest
     container_name: iot-backend
     restart: unless-stopped
     env_file:
@@ -33,13 +42,39 @@ services:
       - db_network
       - mqtt_internal
     depends_on:
-      - mosquitto
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
 
   frontend:
-    image: frontendmqtt:latest
+    image: erivas04/frontendmqtt:latest
     container_name: iot-frontend
     restart: unless-stopped
     networks:
       - proxy_network
     depends_on:
       - backend
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: iot-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    volumes:
+      - io_data:/var/lib/postgresql/data
+    networks:
+      - db_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  io_data:

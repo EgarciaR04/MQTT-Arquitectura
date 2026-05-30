@@ -1,0 +1,24 @@
+# Nginx general - debe levantarse PRIMERO.
+# Crea la red proxy_network compartida y expone el unico puerto 80 al host.
+# Los demas proyectos referencian proxy_network como externa (external: true).
+#
+# Orden de arranque en el servidor:
+#   1. docker compose -f docker-compose.nginx.yml up -d
+#   2. docker compose -f docker-compose.server.yml up -d     (proyecto /mqtt)
+#   3. docker compose -f ~/compi/docker-compose.server.yml up -d  (proyecto /compi)
+
+networks:
+  proxy_network:
+    name: proxy_network
+
+services:
+  nginx-general:
+    image: nginx:1.27-alpine
+    container_name: nginx-general
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-general/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy_network

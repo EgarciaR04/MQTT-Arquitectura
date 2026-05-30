@@ -28,7 +28,7 @@ services:
 
   backend:
     build: ./backend
-    image: backendmqtt:latest
+    image: erivas04/backendmqtt:latest
     container_name: iot-backend
     restart: unless-stopped
     env_file:
@@ -41,7 +41,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: frontendmqtt:latest
+    image: erivas04/frontendmqtt:latest
     container_name: iot-frontend
     restart: unless-stopped
     depends_on:

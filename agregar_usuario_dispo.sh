@@ -24,7 +24,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # sin color
 
 # Valores por defecto
-DEFAULT_BACKEND="http://198.199.86.232/api"
+DEFAULT_BACKEND="http://78.13.114.116/mqttapi"
 
 echo -e "${BLUE}=============================================================${NC}"
 echo -e "${BLUE}   Provisión de usuario + dispositivos en backend IoT${NC}"
