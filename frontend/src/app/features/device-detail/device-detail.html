@@ -117,4 +117,86 @@
   </div>
 </section>
 
+
+  <!-- Firmware OTA -->
+  <section class="firmware-card">
+    <button class="firmware-toggle" (click)="firmwarePanelOpen.set(!firmwarePanelOpen())" type="button">
+      <span class="firmware-toggle-title">Actualizar firmware</span>
+      <span class="firmware-toggle-icon">{{ firmwarePanelOpen() ? '▲' : '▼' }}</span>
+    </button>
+
+    @if (firmwarePanelOpen()) {
+      <div class="firmware-body">
+
+        <!-- Formulario de subida -->
+        <div class="firmware-upload-form">
+          <div class="firmware-field">
+            <label class="firmware-label">Versión</label>
+            <input
+              class="firmware-input"
+              type="text"
+              placeholder="ej: 1.0.0"
+              [value]="firmwareVersion()"
+              (input)="firmwareVersion.set($any($event.target).value)"
+              [disabled]="uploadingFirmware()" />
+          </div>
+
+          <div class="firmware-field">
+            <label class="firmware-label">Binario (.bin)</label>
+            <div class="firmware-file-row">
+              <label class="firmware-file-btn" [class.disabled]="uploadingFirmware()">
+                {{ firmwareFile() ? firmwareFile()!.name : 'Seleccionar archivo' }}
+                <input
+                  type="file"
+                  accept=".bin"
+                  (change)="onFileSelected($event)"
+                  [disabled]="uploadingFirmware()"
+                  style="display:none" />
+              </label>
+              @if (firmwareFile()) {
+                <span class="firmware-file-size">{{ formatBytes(firmwareFile()!.size) }}</span>
+              }
+            </div>
+          </div>
+
+          <button
+            class="send-btn"
+            (click)="uploadFirmware()"
+            [disabled]="uploadingFirmware()">
+            @if (uploadingFirmware()) { Subiendo... } @else { Subir y notificar }
+          </button>
+        </div>
+
+        @if (firmwareFeedback()) {
+          <div class="feedback" [class.feedback-ok]="firmwareFeedback()!.ok" [class.feedback-err]="!firmwareFeedback()!.ok">
+            {{ firmwareFeedback()!.text }}
+          </div>
+        }
+
+        <!-- Historial -->
+        @if (firmwareList().length > 0) {
+          <div class="firmware-history">
+            <div class="firmware-history-title">Historial</div>
+            @for (fw of firmwareList(); track fw.id) {
+              <div class="firmware-row">
+                <div class="firmware-row-left">
+                  <span class="firmware-version">v{{ fw.version }}</span>
+                  <span class="firmware-filename">{{ fw.original_filename }}</span>
+                  <span class="firmware-size">{{ formatBytes(fw.file_size) }}</span>
+                </div>
+                <div class="firmware-row-right">
+                  <span class="firmware-status" [class.status-notified]="fw.status === 'notified'" [class.status-ready]="fw.status === 'ready'">
+                    {{ fw.status === 'notified' ? 'Notificado' : 'Listo' }}
+                  </span>
+                  <span class="firmware-date">{{ fw.created_at | slice:0:10 }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    }
+  </section>
+
 </main>

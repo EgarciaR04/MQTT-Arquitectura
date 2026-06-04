@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     DateTime,
     ForeignKey,
     Index,
@@ -43,6 +44,9 @@ class Device(Base):
     telemetry: Mapped[list["Telemetry"]] = relationship(
         back_populates="device", cascade="all, delete-orphan"
     )
+    firmware_releases: Mapped[list["FirmwareRelease"]] = relationship(
+        back_populates="device", cascade="all, delete-orphan"
+    )
 
 
 class Telemetry(Base):
@@ -70,3 +74,22 @@ class CommandLog(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     payload: Mapped[dict] = mapped_column(JSON)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FirmwareRelease(Base):
+    __tablename__ = "firmware_releases"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id"), index=True)
+    version: Mapped[str] = mapped_column(String(64))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    file_path: Mapped[str] = mapped_column(String(512))
+    file_size: Mapped[int] = mapped_column(BigInteger)
+    # ready → notified (MQTT enviado)
+    status: Mapped[str] = mapped_column(String(20), default="ready")
+    notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    device: Mapped["Device"] = relationship(back_populates="firmware_releases")

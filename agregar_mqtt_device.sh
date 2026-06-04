@@ -68,6 +68,7 @@ user ${DEVICE_ID}
 topic write devices/${DEVICE_ID}/telemetry
 topic write devices/${DEVICE_ID}/status
 topic read  devices/${DEVICE_ID}/commands
+topic read  devices/${DEVICE_ID}/ota
 EOF
     echo -e "${GREEN}    Reglas ACL añadidas para '${DEVICE_ID}'${NC}"
 fi

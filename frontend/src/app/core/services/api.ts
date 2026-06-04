@@ -7,6 +7,7 @@ import { TokenResponse } from '../models/token';
 import { Device } from '../models/device';
 import { TelemetryRecord } from '../models/telemetry';
 import { CommandRequest, CommandResponse } from '../models/command';
+import { FirmwareRelease } from '../models/firmware';
 
 @Injectable({ providedIn: 'root' })
 export class Api {
@@ -63,5 +64,23 @@ export class Api {
 
   setBombaForzada(deviceId: string, value: boolean): Observable<CommandResponse> {
     return this.sendCommand(deviceId, { payload: { bombaForzada: value } });
+  }
+
+  // ===== Firmware OTA =====
+
+  uploadFirmware(deviceId: string, version: string, file: File): Observable<FirmwareRelease> {
+    const form = new FormData();
+    form.append('version', version);
+    form.append('file', file, file.name);
+    return this.http.post<FirmwareRelease>(
+      `${this.baseUrl}/devices/${deviceId}/firmware`,
+      form
+    );
+  }
+
+  listFirmware(deviceId: string): Observable<FirmwareRelease[]> {
+    return this.http.get<FirmwareRelease[]>(
+      `${this.baseUrl}/devices/${deviceId}/firmware`
+    );
   }
 }

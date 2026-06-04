@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
@@ -11,10 +11,11 @@ import {
   TelemetryPayload,
   WebSocketMessage,
 } from '../../core/models/telemetry';
+import { FirmwareRelease } from '../../core/models/firmware';
 
 @Component({
   selector: 'app-device-detail',
-  imports: [DecimalPipe, FormsModule],
+  imports: [DecimalPipe, SlicePipe, FormsModule],
   templateUrl: './device-detail.html',
   styleUrl: './device-detail.css'
 })
@@ -35,12 +36,20 @@ export class DeviceDetail implements OnInit, OnDestroy {
   connectionState = signal<ConnectionState>('disconnected');
 
   // Estado del dispositivo según el LWT (online/offline)
-  deviceStatus = signal<'online' | 'offline' | 'unknown'>('unknown');
+  deviceStatus = signal<'online' | 'offline' | 'updating' | 'unknown'>('unknown');
 
   // Formulario de comando
   newMinHumedad = signal<number | null>(null);
   sendingCommand = signal(false);
   commandFeedback = signal<{ ok: boolean; text: string } | null>(null);
+
+  // Firmware OTA
+  firmwareList = signal<FirmwareRelease[]>([]);
+  firmwareVersion = signal('');
+  firmwareFile = signal<File | null>(null);
+  uploadingFirmware = signal(false);
+  firmwareFeedback = signal<{ ok: boolean; text: string } | null>(null);
+  firmwarePanelOpen = signal(false);
 
   private subs: Subscription[] = [];
 
@@ -67,6 +76,9 @@ export class DeviceDetail implements OnInit, OnDestroy {
 
     // Conectar al dispositivo
     this.ws.connect(id);
+
+    // Cargar historial de firmware
+    this.loadFirmware(id);
   }
 
   ngOnDestroy(): void {
@@ -129,6 +141,7 @@ export class DeviceDetail implements OnInit, OnDestroy {
   badgeText(): string {
     if (this.connectionState() === 'connecting') return 'Conectando...';
     if (this.connectionState() === 'disconnected') return 'Reconectando...';
+    if (this.deviceStatus() === 'updating') return 'Actualizando firmware...';
     if (this.deviceStatus() === 'offline') return 'Offline';
     if (this.telemetry()) return 'En vivo';
     return 'Esperando datos...';
@@ -136,6 +149,7 @@ export class DeviceDetail implements OnInit, OnDestroy {
 
   badgeClass(): string {
     if (this.connectionState() !== 'connected') return 'badge-warn';
+    if (this.deviceStatus() === 'updating') return 'badge-ota';
     if (this.deviceStatus() === 'offline') return 'badge-bad';
     if (this.telemetry()) return 'badge-ok';
     return 'badge-warn';
@@ -162,6 +176,66 @@ export class DeviceDetail implements OnInit, OnDestroy {
         });
       },
     });
+  }
+
+  // ===== Firmware OTA =====
+
+  loadFirmware(id: string): void {
+    this.api.listFirmware(id).subscribe({
+      next: (list) => this.firmwareList.set(list),
+      error: () => {},
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.firmwareFile.set(input.files?.[0] ?? null);
+  }
+
+  uploadFirmware(): void {
+    const file = this.firmwareFile();
+    const version = this.firmwareVersion().trim();
+
+    if (!file) {
+      this.firmwareFeedback.set({ ok: false, text: 'Selecciona un archivo .bin' });
+      return;
+    }
+    if (!version) {
+      this.firmwareFeedback.set({ ok: false, text: 'Ingresa una versión' });
+      return;
+    }
+
+    this.uploadingFirmware.set(true);
+    this.firmwareFeedback.set(null);
+
+    this.api.uploadFirmware(this.deviceId(), version, file).subscribe({
+      next: (release) => {
+        this.uploadingFirmware.set(false);
+        this.firmwareFile.set(null);
+        this.firmwareVersion.set('');
+        this.firmwareList.update((list) => [release, ...list]);
+        const notified = release.status === 'notified';
+        this.firmwareFeedback.set({
+          ok: true,
+          text: notified
+            ? `v${release.version} subida y dispositivo notificado vía MQTT`
+            : `v${release.version} subida. No se pudo notificar al dispositivo (offline)`,
+        });
+      },
+      error: (err) => {
+        this.uploadingFirmware.set(false);
+        this.firmwareFeedback.set({
+          ok: false,
+          text: `Error ${err.status}: ${err.error?.detail ?? err.message}`,
+        });
+      },
+    });
+  }
+
+  formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   }
 
   toggleForzada(): void {

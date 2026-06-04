@@ -37,6 +37,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend.env
+    volumes:
+      - firmware_storage:/app/firmware
     networks:
       - proxy_network
       - db_network
@@ -78,3 +80,4 @@ services:
 
 volumes:
   io_data:
+  firmware_storage:

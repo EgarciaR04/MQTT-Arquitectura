@@ -11,7 +11,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal, init_db
 from app.models import Device
 from app.mqtt_handler import mqtt_lifespan
-from app.routers import auth_router, devices_router
+from app.routers import auth_router, devices_router, firmware_router
 from app.ws_manager import manager
 
 logging.basicConfig(
@@ -48,6 +48,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(devices_router.router)
+app.include_router(firmware_router.router)
 
 
 @app.get("/", tags=["health"])

@@ -1,0 +1,393 @@
+// === Monitoreo doble de humedad - ESP32 NodeMCU-32 V1.3 ===
+// + Envío de telemetría y recepción de comandos vía MQTT
+// + Control manual: bloqueo y forzado de bomba (jerarquía: bloqueo > forzado > auto)
+// + OTA firmware update vía MQTT
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <Preferences.h>
+#include <HTTPUpdate.h>
+
+// === Configuración WiFi ===
+const char* WIFI_SSID = "FAMILIA POP";
+const char* WIFI_PASS = "e8jc4gal";
+
+// === Configuración MQTT ===
+const char* MQTT_HOST = "78.13.114.116";
+const int   MQTT_PORT = 1883;
+const char* DEVICE_ID = "esp32001";
+const char* MQTT_USER = "esp32001";
+const char* MQTT_PASS = "esp32001pass";
+
+// Tópicos derivados
+String topicTelemetria;
+String topicEstado;
+String topicComandos;
+String topicOTA;
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+Preferences preferences;
+
+// === Pines ===
+const int sensor1Pin = 35;
+const int sensor2Pin = 34;
+const int led1Rojo  = 19;
+const int led1Verde = 18;
+const int led2Rojo  = 17;
+const int led2Verde = 16;
+const int ENA = 25;
+const int IN1 = 26;
+const int IN2 = 27;
+
+// === Calibración ===
+const int seco   = 4095;
+const int mojado = 1200;
+float minimoHumedad = 25.0;
+
+// === Estado ===
+int   ultimaHumedad1 = 0;
+int   ultimaHumedad2 = 0;
+bool  ultimoLedRojo1 = false;
+bool  ultimoLedVerde1 = true;
+bool  ultimoLedRojo2 = false;
+bool  ultimoLedVerde2 = true;
+bool  bombaActiva = false;
+bool  bombaBloqueada = false;
+bool  bombaForzada   = false;
+
+unsigned long ultimoIntentoReconectMqtt = 0;
+
+
+// ====================================================================
+// OTA
+// ====================================================================
+
+void performOTA(const String& url, const String& version) {
+  Serial.println("[OTA] *** Iniciando actualización de firmware ***");
+  Serial.print("[OTA] Versión: ");  Serial.println(version);
+  Serial.print("[OTA] URL: ");      Serial.println(url);
+
+  mqttClient.publish(topicEstado.c_str(), "updating", true);
+  delay(200);
+  mqttClient.disconnect();
+
+  httpUpdate.onProgress([](int cur, int total) {
+    Serial.printf("[OTA] %d / %d bytes (%.0f%%)\n",
+                  cur, total, total > 0 ? (cur * 100.0 / total) : 0);
+  });
+
+  WiFiClient updateClient;
+  HTTPUpdateResult result = httpUpdate.update(updateClient, url);
+
+  switch (result) {
+    case HTTP_UPDATE_OK:
+      Serial.println("[OTA] OK — reiniciando...");
+      break;
+
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("[OTA] Error (%d): %s\n",
+                    httpUpdate.getLastError(),
+                    httpUpdate.getLastErrorString().c_str());
+      ultimoIntentoReconectMqtt = 0;
+      conectarMqtt();
+      break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("[OTA] El servidor no encontró el archivo");
+      ultimoIntentoReconectMqtt = 0;
+      conectarMqtt();
+      break;
+  }
+}
+
+
+// ====================================================================
+// WIFI Y MQTT
+// ====================================================================
+
+void conectarWifi() {
+  Serial.print("Conectando a WiFi ");
+  Serial.print(WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  int intentos = 0;
+  while (WiFi.status() != WL_CONNECTED && intentos < 40) {
+    delay(250);
+    Serial.print(".");
+    intentos++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.print("WiFi OK. IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println();
+    Serial.println("Fallo WiFi, reintentaré en el loop.");
+  }
+}
+
+void conectarMqtt() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (mqttClient.connected()) return;
+
+  unsigned long ahora = millis();
+  if (ahora - ultimoIntentoReconectMqtt < 5000) return;
+  ultimoIntentoReconectMqtt = ahora;
+
+  Serial.print("Conectando a MQTT como ");
+  Serial.print(DEVICE_ID);
+  Serial.print("... ");
+
+  bool ok = mqttClient.connect(
+    DEVICE_ID,
+    MQTT_USER, MQTT_PASS,
+    topicEstado.c_str(),
+    1, true, "offline"
+  );
+
+  if (ok) {
+    Serial.println("conectado.");
+    mqttClient.publish(topicEstado.c_str(), "online", true);
+    mqttClient.subscribe(topicComandos.c_str(), 1);
+    mqttClient.subscribe(topicOTA.c_str(), 1);
+    Serial.print("Suscrito a commands y ota: ");
+    Serial.println(topicOTA);
+  } else {
+    Serial.print("falló, rc=");
+    Serial.println(mqttClient.state());
+  }
+}
+
+void onMqttMessage(char* topic, byte* payload, unsigned int length) {
+  String topicStr(topic);
+
+  String msg;
+  msg.reserve(length);
+  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+
+  // ----------------------------------------------------------------
+  // OTA
+  // ----------------------------------------------------------------
+  if (topicStr == topicOTA) {
+    Serial.print("[OTA] Mensaje recibido: ");
+    Serial.println(msg);
+
+    StaticJsonDocument<384> doc;
+    if (deserializeJson(doc, msg)) return;
+
+    const char* type    = doc["type"]    | "";
+    const char* url     = doc["url"]     | "";
+    const char* version = doc["version"] | "?";
+
+    if (strcmp(type, "ota") != 0 || strlen(url) == 0) return;
+
+    performOTA(String(url), String(version));
+    return;
+  }
+  // ----------------------------------------------------------------
+
+  Serial.print("← Comando recibido: ");
+  Serial.println(msg);
+
+  StaticJsonDocument<256> doc;
+  DeserializationError err = deserializeJson(doc, msg);
+  if (err) {
+    Serial.print("JSON inválido: ");
+    Serial.println(err.c_str());
+    return;
+  }
+
+  bool cambioAlgo = false;
+
+  if (!doc["minHumedad"].isNull()) {
+    float nuevoMin = doc["minHumedad"].as<float>();
+    if (nuevoMin >= 0.0f && nuevoMin <= 100.0f) {
+      minimoHumedad = nuevoMin;
+      Serial.print("minimoHumedad -> ");
+      Serial.println(minimoHumedad);
+      cambioAlgo = true;
+    }
+  }
+
+  if (!doc["bombaBloqueada"].isNull()) {
+    bool nuevoValor = doc["bombaBloqueada"].as<bool>();
+    if (nuevoValor != bombaBloqueada) {
+      bombaBloqueada = nuevoValor;
+      preferences.putBool("bloqueada", bombaBloqueada);
+      Serial.print("bombaBloqueada -> ");
+      Serial.println(bombaBloqueada ? "true" : "false");
+      if (bombaBloqueada) detener();
+      cambioAlgo = true;
+    }
+  }
+
+  if (!doc["bombaForzada"].isNull()) {
+    bool nuevoValor = doc["bombaForzada"].as<bool>();
+    if (nuevoValor != bombaForzada) {
+      bombaForzada = nuevoValor;
+      Serial.print("bombaForzada -> ");
+      Serial.println(bombaForzada ? "true" : "false");
+      cambioAlgo = true;
+    }
+  }
+
+  if (cambioAlgo) publicarTelemetria();
+}
+
+void publicarTelemetria() {
+  if (!mqttClient.connected()) return;
+
+  StaticJsonDocument<384> doc;
+  doc["humedad1"]       = ultimaHumedad1;
+  doc["humedad2"]       = ultimaHumedad2;
+  doc["ledRojo1"]       = ultimoLedRojo1;
+  doc["ledVerde1"]      = ultimoLedVerde1;
+  doc["ledRojo2"]       = ultimoLedRojo2;
+  doc["ledVerde2"]      = ultimoLedVerde2;
+  doc["minHumedad"]     = minimoHumedad;
+  doc["bombaActiva"]    = bombaActiva;
+  doc["bombaBloqueada"] = bombaBloqueada;
+  doc["bombaForzada"]   = bombaForzada;
+
+  char buf[384];
+  size_t n = serializeJson(doc, buf, sizeof(buf));
+  bool ok = mqttClient.publish(topicTelemetria.c_str(), (uint8_t*)buf, n, false);
+
+  Serial.print("→ Telemetría ");
+  Serial.println(ok ? "enviada" : "FALLÓ");
+}
+
+
+// ====================================================================
+// LÓGICA DE SENSORES Y CONTROL
+// ====================================================================
+
+void detener() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, 0);
+  if (bombaActiva) {
+    bombaActiva = false;
+    Serial.println("Bomba: APAGADA");
+  }
+}
+
+void moverAdelante(int velocidad) {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, velocidad);
+  if (!bombaActiva) {
+    bombaActiva = true;
+    Serial.println("Bomba: ENCENDIDA");
+  }
+}
+
+void sensor1() {
+  int lectura1 = analogRead(sensor1Pin);
+  int humedad1 = map(lectura1, seco, mojado, 0, 100);
+  humedad1 = constrain(humedad1, 0, 100);
+
+  bool rojo  = (humedad1 < minimoHumedad);
+  bool verde = !rojo;
+
+  digitalWrite(led1Rojo,  rojo  ? HIGH : LOW);
+  digitalWrite(led1Verde, verde ? HIGH : LOW);
+
+  ultimaHumedad1  = humedad1;
+  ultimoLedRojo1  = rojo;
+  ultimoLedVerde1 = verde;
+  imprimirDatos(1, lectura1, humedad1);
+}
+
+void sensor2() {
+  int lectura2 = analogRead(sensor2Pin);
+  int humedad2 = map(lectura2, seco, mojado, 0, 100);
+  humedad2 = constrain(humedad2, 0, 100);
+
+  bool rojo  = (humedad2 < minimoHumedad);
+  bool verde = !rojo;
+
+  digitalWrite(led2Rojo,  rojo  ? HIGH : LOW);
+  digitalWrite(led2Verde, verde ? HIGH : LOW);
+
+  ultimaHumedad2  = humedad2;
+  ultimoLedRojo2  = rojo;
+  ultimoLedVerde2 = verde;
+  imprimirDatos(2, lectura2, humedad2);
+}
+
+void imprimirDatos(int num, int lectura, int porcentaje) {
+  Serial.print("Sensor ");      Serial.print(num);
+  Serial.print(" | ADC: ");     Serial.print(lectura);
+  Serial.print(" | Humedad: "); Serial.print(porcentaje);
+  Serial.println("%");
+}
+
+void controlarBomba() {
+  if (bombaBloqueada)               { detener();          return; }
+  if (bombaForzada)                 { moverAdelante(255); return; }
+  if (ultimaHumedad1 < minimoHumedad) moverAdelante(255);
+  else                                detener();
+}
+
+
+// ====================================================================
+// SETUP
+// ====================================================================
+
+void setup() {
+  Serial.begin(115200);
+  analogSetAttenuation(ADC_11db);
+
+  pinMode(sensor1Pin, INPUT);
+  pinMode(sensor2Pin, INPUT);
+  pinMode(led1Rojo,  OUTPUT);
+  pinMode(led1Verde, OUTPUT);
+  pinMode(led2Rojo,  OUTPUT);
+  pinMode(led2Verde, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  Serial.println("--- Monitoreo Doble de Humedad Iniciado ---");
+
+  preferences.begin("iot-riego", false);
+  bombaBloqueada = preferences.getBool("bloqueada", false);
+  Serial.print("Estado persistente -> bombaBloqueada=");
+  Serial.println(bombaBloqueada ? "true" : "false");
+
+  topicTelemetria = String("devices/") + DEVICE_ID + "/telemetry";
+  topicEstado     = String("devices/") + DEVICE_ID + "/status";
+  topicComandos   = String("devices/") + DEVICE_ID + "/commands";
+  topicOTA        = String("devices/") + DEVICE_ID + "/ota";
+
+  conectarWifi();
+
+  mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+  mqttClient.setCallback(onMqttMessage);
+  mqttClient.setKeepAlive(30);
+  mqttClient.setBufferSize(512);
+}
+
+
+// ====================================================================
+// LOOP
+// ====================================================================
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) conectarWifi();
+  if (!mqttClient.connected()) conectarMqtt();
+  mqttClient.loop();
+
+  sensor1();
+
+  publicarTelemetria();
+  controlarBomba();
+  publicarTelemetria();
+
+  delay(1000);
+}

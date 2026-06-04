@@ -52,6 +52,7 @@
 .badge-ok { background: #4caf50; color: white; }
 .badge-warn { background: #ff9800; color: white; }
 .badge-bad { background: #f44336; color: white; }
+.badge-ota { background: #9c27b0; color: white; }
 
 /* === Contenido === */
 .content {
@@ -328,4 +329,216 @@
 .switch:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* === Firmware OTA === */
+.firmware-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.firmware-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.firmware-toggle:hover {
+  background: #fafafa;
+}
+
+.firmware-toggle-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #999;
+}
+
+.firmware-toggle-icon {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.firmware-body {
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.firmware-upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.firmware-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.firmware-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.firmware-input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.firmware-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.firmware-input:disabled {
+  background: #f5f5f5;
+}
+
+.firmware-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.firmware-file-btn {
+  display: inline-block;
+  padding: 9px 14px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #444;
+  cursor: pointer;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.firmware-file-btn:hover:not(.disabled) {
+  background: #e4e4e4;
+}
+
+.firmware-file-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.firmware-file-size {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* === Historial de firmware === */
+.firmware-history {
+  border-top: 1px solid #eee;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.firmware-history-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #bbb;
+  margin-bottom: 8px;
+}
+
+.firmware-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+}
+
+.firmware-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.firmware-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.firmware-version {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
+  white-space: nowrap;
+}
+
+.firmware-filename {
+  font-size: 12px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+
+.firmware-size {
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.firmware-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.firmware-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.status-notified {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-ready {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.firmware-date {
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
 }

@@ -19,6 +19,32 @@ _client: aiomqtt.Client | None = None
 _publish_lock = asyncio.Lock()
 
 
+async def publish_ota_available(
+    device_id: str,
+    firmware_id: int,
+    version: str,
+    url: str,
+    size: int,
+) -> bool:
+    global _client
+    if _client is None:
+        logger.error("Cliente MQTT no inicializado")
+        return False
+
+    topic = f"devices/{device_id}/ota"
+    message = json.dumps({
+        "type": "ota",
+        "firmware_id": firmware_id,
+        "version": version,
+        "url": url,
+        "size": size,
+    })
+    async with _publish_lock:
+        await _client.publish(topic, message, qos=1)
+    logger.info("OTA publicado en %s: version=%s url=%s", topic, version, url)
+    return True
+
+
 async def publish_command(device_id: str, payload: dict[str, Any]) -> bool:
     global _client
     if _client is None:

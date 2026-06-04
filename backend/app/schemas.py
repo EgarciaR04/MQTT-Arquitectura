@@ -57,3 +57,15 @@ class CommandRequest(BaseModel):
 class CommandResponse(BaseModel):
     sent: bool
     device_id: str
+
+
+class FirmwareOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    device_id: int
+    version: str
+    original_filename: str
+    file_size: int
+    status: str
+    created_at: datetime
+    notified_at: datetime | None

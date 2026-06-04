@@ -18,5 +18,8 @@ class Settings(BaseSettings):
 
     cors_origins: str = "*"
 
+    public_base_url: str = "http://localhost/mqtt/api"
+    firmware_storage_path: str = "/app/firmware"
+
 
 settings = Settings()

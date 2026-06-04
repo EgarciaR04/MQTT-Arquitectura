@@ -39,5 +39,5 @@ export interface WebSocketMessage {
   device_id: string;
   timestamp?: string;
   payload?: TelemetryPayload;
-  status?: 'online' | 'offline';
+  status?: 'online' | 'offline' | 'updating';
 }
